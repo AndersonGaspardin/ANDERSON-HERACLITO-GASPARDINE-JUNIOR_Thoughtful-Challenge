@@ -78,22 +78,29 @@ class NewsScraperBot:
                     retries=3,
                     delay=5,
                 )
-                logger.info(f"Looking for category '{self.category}' in the filter list")
-                category_elements = self.driver.find_elements(
-                    By.XPATH, '//li//div[contains(@class, "search-filter-input")]//label//span'
+                logger.info(
+                    f"Looking for category '{self.category}' in the filter list"
                 )
-                
+                category_elements = self.driver.find_elements(
+                    By.XPATH,
+                    '//li//div[contains(@class, "search-filter-input")]//label//span',
+                )
+
                 for element in category_elements:
                     if self.category.lower() in element.text.lower():
-                        checkbox = element.find_element(By.XPATH, '../input[@type="checkbox"]')
+                        checkbox = element.find_element(
+                            By.XPATH, '../input[@type="checkbox"]'
+                        )
                         retry_with_fallback(
                             lambda: checkbox.click(),
                             retries=3,
                             delay=5,
                         )
-                    logger.info(f"Category '{self.category}' selected successfully.")
-                    return
-                
+                        logger.info(
+                            f"Category '{self.category}' selected successfully."
+                        )
+                        return
+
             except Exception as e:
                 logger.error(f"Failed to filter by category '{self.category}': {e}")
                 self.driver.save_screenshot("output/category_filter_error.png")
@@ -137,15 +144,28 @@ class NewsScraperBot:
                 )
 
                 for i in range(len(titles)):
-                    title = titles[i].text if title[i] else ""
-                    date_text = dates[i].get_attribute("data-timestamp") if dates[i] else ""
-                    date = self.convert_timestamp_to_date(date_text)
-                    description = descriptions[i].text if description[i] else ""
-                    image_url = image_elements[i].get_attribute("src") if description else ""
+                    title = titles[i].text if titles[i] else ""
 
-                    image_filename = self.download_image(
-                        image_url, f"output/image_{date}_{i}.jpg"
-                    ) if image_url else ""
+                    date_text = (
+                        dates[i].get_attribute("data-timestamp") if dates[i] else ""
+                    )
+                    date = self.convert_timestamp_to_date(date_text)
+
+                    description = descriptions[i].text if descriptions[i] else ""
+
+                    image_url = (
+                        image_elements[i].get_attribute("src")
+                        if image_elements[i]
+                        else ""
+                    )
+                    image_filename = (
+                        self.download_image(
+                            image_url, f"output/image_{date}_{i}.jpg"
+                        )
+                        if image_url
+                        else ""
+                    )
+
                     phrase_count = self.count_phrase_in_text(title, description)
                     contains_money = self.check_for_money(title, description)
 
