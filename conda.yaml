@@ -14,4 +14,6 @@ dependencies:
     - openpyxl==3.2.0b1           # https://pypi.org/project/openpyxl/
     - pandas==2.2.2               # https://pypi.org/project/pandas/
     - pyyaml==6.0.2               # https://pypi.org/project/PyYAML/
-    - pytz
+    - pytz                        # https://pypi.org/project/pytz/
+    - robocorp==2.1.0             # https://pypi.org/project/robocorp
+

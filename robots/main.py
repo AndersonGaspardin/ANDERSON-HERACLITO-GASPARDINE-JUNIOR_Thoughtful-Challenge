@@ -46,7 +46,7 @@ class NewsScraperBot:
         except Exception as e:
             logger.error(f"Failed to find the search button: {e}")
             self.driver.save_screenshot("output/button_to_search_bar_error.png")
-        sleep(15)
+        sleep(30)
         try:
             logger.info(f"Waiting for the search input to be available")
             search_input = WebDriverWait(self.driver, 60).until(
@@ -260,7 +260,7 @@ class NewsScraperBot:
             with open("work_item.yaml", "r") as file:
                 params = yaml.safe_load(file)
             self.search_phrase = params.get("search_phrase")
-            self.category = params.get("news_category")
+            self.category = params.get("news_category", None)
             self.months = int(params.get("months", 1))
         else:
             logger.info("Loading parameters manually")
@@ -278,8 +278,9 @@ class NewsScraperBot:
             self.load_workitem_parameters(local_test=True)
             sleep(7)
             self.open_website_and_search()
-            sleep(7)
-            self.filter_by_category()
+            if self.category:
+                sleep(7)
+                self.filter_by_category()
             sleep(7)
             self.sort_by_newest()
             sleep(7)
