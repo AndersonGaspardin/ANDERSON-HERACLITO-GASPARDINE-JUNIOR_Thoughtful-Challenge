@@ -1,16 +1,22 @@
+from datetime import datetime
+from time import sleep
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import pandas as pd
+
 import re
 import os
-import requests
 import logging
 import yaml
 
-# Configuração do logging
+from robots.utils import retry_with_fallback
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class NewsScraperBot:
     def __init__(self, url, search_phrase=None, category=None, months=1):
@@ -20,6 +26,7 @@ class NewsScraperBot:
         self.category = category
         self.months = months
         self.news_data = []
+        self.retry_website = "https://www.latimes.com/search?q="
 
     def open_website_and_search(self):
         logger.info(f"Opening website: {self.url}")
@@ -27,77 +34,166 @@ class NewsScraperBot:
 
         try:
             logger.info("Waiting for the search button to be clickable")
-            search_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-element="search-button"]'))
+            search_button = WebDriverWait(self.driver, 30).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.CSS_SELECTOR,
+                        "body > ps-header > header > div.flex.\[\@media_print\]\:hidden > button",
+                    )
+                )
             )
             search_button.click()
         except Exception as e:
             logger.error(f"Failed to find the search button: {e}")
             self.driver.save_screenshot("output/button_to_search_bar_error.png")
-
+        sleep(15)
         try:
             logger.info(f"Waiting for the search input to be available")
-            search_input = WebDriverWait(self.driver, 10).until(
-                EC.visibility_of_element_located((By.CSS_SELECTOR, 'input[data-element="search-form-input"]'))
+            search_input = WebDriverWait(self.driver, 60).until(
+                EC.visibility_of_element_located(
+                    (
+                        By.CSS_SELECTOR,
+                        "body > ps-header > header > div.flex.\[\@media_print\]\:hidden > div.ct-hidden.fixed.md\:absolute.top-12\.5.right-0.bottom-0.left-0.z-25.bg-header-bg-color.md\:top-15.md\:bottom-auto.md\:h-25.md\:shadow-sm-2 > form > label > input",
+                    )
+                )
             )
             search_input.send_keys(self.search_phrase)
+            search_input.submit()
+
         except Exception as e:
             logger.error(f"Failed to find the search input: {e}")
             self.driver.save_screenshot("output/search_bar_error.png")
-
-        try:
-            logger.info("Waiting for the search submit button to be clickable")
-            submit_button = WebDriverWait(self.driver, 10).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, 'button[data-element="search-submit-button"]'))
-            )
-            submit_button.click()
-        except Exception as e:
-            logger.error(f"Failed to find the submit button: {e}")
-            self.driver.save_screenshot("output/submit_button_error.png")
 
     def filter_by_category(self):
         if self.category:
             logger.info(f"Filtering results by category: {self.category}")
             try:
-                category_element = WebDriverWait(self.driver, 10).until(
-                    EC.element_to_be_clickable((By.XPATH, f'//a[contains(text(), "{self.category}")]'))
+                logger.info("Ensuring all filters are visible")
+                see_all_locator = '//button[@data-toggle-trigger="see-all"]'
+                see_all_button = WebDriverWait(self.driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, see_all_locator))
                 )
-                category_element.click()
+                retry_with_fallback(
+                    lambda: see_all_button.click(),
+                    retries=3,
+                    delay=5,
+                )
+                logger.info(f"Looking for category '{self.category}' in the filter list")
+                category_elements = self.driver.find_elements(
+                    By.XPATH, '//li//div[contains(@class, "search-filter-input")]//label//span'
+                )
+                
+                for element in category_elements:
+                    if self.category.lower() in element.text.lower():
+                        checkbox = element.find_element(By.XPATH, '../input[@type="checkbox"]')
+                        retry_with_fallback(
+                            lambda: checkbox.click(),
+                            retries=3,
+                            delay=5,
+                        )
+                    logger.info(f"Category '{self.category}' selected successfully.")
+                    return
+                
             except Exception as e:
-                logger.error(f"Failed to filter by category: {e}")
+                logger.error(f"Failed to filter by category '{self.category}': {e}")
                 self.driver.save_screenshot("output/category_filter_error.png")
 
+    def sort_by_newest(self):
+        logger.info("Sorting results by newest")
+        try:
+            sort_locator = "select.select-input"
+            sort_dropdown = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, sort_locator))
+            )
+            sort_dropdown.click()
+
+            newest_option_locator = 'option[value="1"]'
+            newest_option = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, newest_option_locator))
+            )
+            newest_option.click()
+
+            logger.info("Sorted results by newest")
+        except Exception as e:
+            logger.error(f"Failed to sort by newest: {e}")
+            self.driver.save_screenshot("output/sort_by_newest_error.png")
+
     def extract_news_data(self):
+        sleep(30)
         logger.info("Extracting news data")
         try:
-            titles = self.driver.find_elements(By.XPATH, '//h3[contains(@class, "title")]')
-            dates = self.driver.find_elements(By.XPATH, '//time[contains(@class, "date")]')
-            descriptions = self.driver.find_elements(By.XPATH, '//p[contains(@class, "description")]')
-            image_elements = self.driver.find_elements(By.XPATH, '//img[contains(@class, "image-class")]')
+            while True:
+                titles = self.driver.find_elements(
+                    By.XPATH, '//h3[contains(@class, "title")]'
+                )
+                dates = self.driver.find_elements(
+                    By.XPATH, '//p[@class="promo-timestamp"]'
+                )
+                descriptions = self.driver.find_elements(
+                    By.XPATH, '//p[contains(@class, "description")]'
+                )
+                image_elements = self.driver.find_elements(
+                    By.XPATH, '//img[contains(@class, "image")]'
+                )
 
-            for i in range(len(titles)):
-                title = titles[i].text
-                date = dates[i].get_attribute("datetime")
-                description = descriptions[i].text
-                image_url = image_elements[i].get_attribute("src")
+                for i in range(len(titles)):
+                    title = titles[i].text if title[i] else ""
+                    date_text = dates[i].get_attribute("data-timestamp") if dates[i] else ""
+                    date = self.convert_timestamp_to_date(date_text)
+                    description = descriptions[i].text if description[i] else ""
+                    image_url = image_elements[i].get_attribute("src") if description else ""
 
-                image_filename = self.download_image(image_url, f"output/image_{i}.jpg")
-                phrase_count = self.count_phrase_in_text(title, description)
-                contains_money = self.check_for_money(title, description)
+                    image_filename = self.download_image(
+                        image_url, f"output/image_{date}_{i}.jpg"
+                    ) if image_url else ""
+                    phrase_count = self.count_phrase_in_text(title, description)
+                    contains_money = self.check_for_money(title, description)
 
-                self.news_data.append({
-                    "title": title,
-                    "date": date,
-                    "description": description,
-                    "image_filename": image_filename,
-                    "phrase_count": phrase_count,
-                    "contains_money": contains_money,
-                })
+                    if (datetime.now() - date).days / 30 > self.months:
+                        logger.info(
+                            "News articles are older than the specified months."
+                        )
+                        return
 
-                logger.info(f"Extracted news: {title} | Date: {date} | Money mentioned: {contains_money}")
+                    self.news_data.append(
+                        {
+                            "title": title,
+                            "date": date.strftime("%Y-%m-%d"),
+                            "description": description,
+                            "image_filename": image_filename,
+                            "phrase_count": phrase_count,
+                            "contains_money": contains_money,
+                        }
+                    )
+
+                    logger.info(
+                        f"Extracted news: {title} | Date: {date} | Money mentioned: {contains_money}"
+                    )
+
+                try:
+                    next_button_locator = "div.search-results-module-next-page a"
+                    next_button = WebDriverWait(self.driver, 10).until(
+                        EC.element_to_be_clickable(
+                            (By.CSS_SELECTOR, next_button_locator)
+                        )
+                    )
+                    next_button.click()
+                    logger.info("Navigating to the next page.")
+                except Exception as e:
+                    logger.info("No more pages to navigate.")
+                    break
+
         except Exception as e:
             logger.error(f"Failed to extract news data: {e}")
             self.driver.save_screenshot("output/extract_news_data_error.png")
+
+    def convert_timestamp_to_date(self, timestamp):
+        """Convert a timestamp to a datetime object."""
+        try:
+            return datetime.fromtimestamp(int(timestamp) / 1000)
+        except ValueError:
+            logger.error(f"Invalid timestamp: {timestamp}")
+            return datetime.min
 
     def download_image(self, url, file_path):
         logger.info(f"Downloading image from: {url}")
@@ -112,8 +208,12 @@ class NewsScraperBot:
             return None
 
     def count_phrase_in_text(self, title, description):
-        phrase_count = title.lower().count(self.search_phrase.lower()) + description.lower().count(self.search_phrase.lower())
-        logger.info(f"Phrase '{self.search_phrase}' found {phrase_count} times in the title and description")
+        phrase_count = title.lower().count(
+            self.search_phrase.lower()
+        ) + description.lower().count(self.search_phrase.lower())
+        logger.info(
+            f"Phrase '{self.search_phrase}' found {phrase_count} times in the title and description"
+        )
         return phrase_count
 
     def check_for_money(self, title, description):
@@ -124,7 +224,6 @@ class NewsScraperBot:
 
     def save_to_excel(self, filename="output/news_data.xlsx"):
         logger.info(f"Saving data to Excel file: {filename}")
-        import pandas as pd
 
         df = pd.DataFrame(self.news_data)
         df.to_excel(filename, index=False)
@@ -150,14 +249,22 @@ class NewsScraperBot:
             self.category = "Your category"
             self.months = 1
 
-        logger.info(f"Parameters loaded - Search Phrase: {self.search_phrase}, Category: {self.category}, Months: {self.months}")
+        logger.info(
+            f"Parameters loaded - Search Phrase: {self.search_phrase}, Category: {self.category}, Months: {self.months}"
+        )
 
     def run(self):
         try:
             self.load_workitem_parameters(local_test=True)
+            sleep(7)
             self.open_website_and_search()
+            sleep(7)
             self.filter_by_category()
+            sleep(7)
+            self.sort_by_newest()
+            sleep(7)
             self.extract_news_data()
+            sleep(7)
             self.save_to_excel()
         except Exception as e:
             logger.error(f"An error occurred: {e}")

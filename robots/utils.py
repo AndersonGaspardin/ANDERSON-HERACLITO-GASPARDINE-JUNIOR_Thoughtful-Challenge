@@ -4,7 +4,6 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 
 from .logger_config import setup_logging
 
-# Configuração do logger
 logger = setup_logging()
 
 def retry_with_fallback(func, retries=3, delay=5, *args, **kwargs):
