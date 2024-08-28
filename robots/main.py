@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 class NewsScraperBot:
     def __init__(self, url, search_phrase=None, category=None, months=1):
-        self.driver = webdriver.Safari()
+        self.driver = webdriver.Chrome()
         self.url = url
         self.search_phrase = search_phrase
         self.category = category
