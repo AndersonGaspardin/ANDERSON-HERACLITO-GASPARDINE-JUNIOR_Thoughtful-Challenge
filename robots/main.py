@@ -32,6 +32,7 @@ class NewsScraperBot:
         self.driver = self.browser.driver
 
     def search(self):
+        self.wait_for_page_load()
         try:
             logger.info("Waiting for the search button to be clickable")
             search_button = WebDriverWait(self.driver, 30).until(
@@ -47,6 +48,7 @@ class NewsScraperBot:
             logger.error(f"Failed to find the search button: {e}")
             self.driver.save_screenshot("output/button_to_search_bar_error.png")
         try:
+            self.wait_for_page_load()
             logger.info(f"Waiting for the search input to be available")
             search_input = WebDriverWait(self.driver, 60).until(
                 EC.visibility_of_element_located(
@@ -66,6 +68,7 @@ class NewsScraperBot:
     def filter_by_category(self):
         if self.category:
             logger.info(f"Filtering results by category: {self.category}")
+            self.wait_for_page_load()
             try:
                 logger.info("Ensuring all filters are visible")
                 see_all_locator = '//button[@data-toggle-trigger="see-all"]'
@@ -106,6 +109,7 @@ class NewsScraperBot:
 
     def sort_by_newest(self):
         logger.info("Sorting results by newest")
+        self.wait_for_page_load()
         try:
             sort_locator = "select.select-input"
             sort_dropdown = WebDriverWait(self.driver, 10).until(
@@ -129,7 +133,7 @@ class NewsScraperBot:
         wait = WebDriverWait(self.browser.driver, 30)
         try:
             while True:
-
+                self.wait_for_page_load(timeout=30)
                 titles_locator = '//h3[contains(@class, "title")]'
                 dates_locator = '//p[@class="promo-timestamp"]'
                 description_locator = '//p[contains(@class, "description")]'
@@ -293,6 +297,15 @@ class NewsScraperBot:
         logger.info(
             f"Parameters loaded - Search Phrase: {self.search_phrase}, Category: {self.category}, Months: {self.months}"
         )
+
+    def wait_for_page_load(self, timeout=10):
+        try:
+            WebDriverWait(self.driver, timeout).until(
+                lambda driver: driver.execute_script('return document.readyState') == 'complete'
+            )
+            logger.info("Page has fully loaded.")
+        except Exception as e:
+            logger.error(f"Page did not load within {timeout} seconds. Error: {e}")
 
     def run(self):
         try:
