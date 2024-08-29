@@ -131,88 +131,66 @@ class NewsScraperBot:
         logger.info("Extracting news data")
         try:
             while True:
-                wait = WebDriverWait(self.browser.driver, 50).until(EC.staleness_of())
-                self.wait_for_page_load(timeout=30)
-                titles_locator = '//h3[contains(@class, "title")]'
-                dates_locator = '//p[@class="promo-timestamp"]'
-                description_locator = '//p[contains(@class, "description")]'
-                image_locator = '//img[contains(@class, "image")]'
-
-                titles = retry_with_fallback(
-                    lambda: wait.until(
-                        EC.visibility_of_all_elements_located(
-                            (By.XPATH, titles_locator)
-                        )
-                    )
-                )
-                dates = retry_with_fallback(
-                    lambda: wait.until(
-                        EC.visibility_of_all_elements_located(
-                            (By.XPATH, dates_locator)
-                        )
-                    )
-                )
-                descriptions = retry_with_fallback(
-                    lambda: wait.until(
-                        EC.visibility_of_all_elements_located(
-                            (By.XPATH, description_locator)
-                        )
-                    )
-                )
-                image_elements = retry_with_fallback(
-                    lambda: wait.until(
-                        EC.visibility_of_all_elements_located(
-                            (By.XPATH, image_locator)
-                        )
-                    )
+                self.wait_for_page_load(15)
+                article_locator = '//div[contains(@class, "article-class") and contains(@class, "other-class")]'
+                articles = retry_with_fallback(
+                    lambda: self.browser.find_elements(article_locator)
                 )
 
-                for i in range(len(titles)):
-                    title = titles[i].text if titles[i] else ""
+                for article in articles:
+                    try:
+                        title = article.find_element(
+                            By.XPATH, './/h3[contains(@class, "title")]'
+                        ).text
+                        date_text = article.find_element(
+                            By.XPATH, './/p[@class="promo-timestamp"]'
+                        ).get_attribute("data-timestamp")
+                        date = self._convert_timestamp_to_date(date_text)
+                        description = article.find_element(
+                            By.XPATH, './/p[contains(@class, "description")]'
+                        ).text
+                        image_url = article.find_element(
+                            By.XPATH, './/img[contains(@class, "image")]'
+                        ).get_attribute("src")
 
-                    date_text = (
-                        dates[i].get_attribute("data-timestamp") if dates[i] else ""
-                    )
-                    date = self.convert_timestamp_to_date(date_text)
-
-                    description = descriptions[i].text if descriptions[i] else ""
-
-                    image_url = (
-                        image_elements[i].get_attribute("src")
-                        if image_elements[i]
-                        else ""
-                    )
-                    image_filename = (
-                        self.download_image(
-                            image_url, f"output/image_{date}_{i}.jpg"
+                        image_filename = (
+                            self.download_image(
+                                image_url, f"output/image_{len(self.news_data)}.jpg"
+                            )
+                            if image_url
+                            else ""
                         )
-                        if image_url
-                        else ""
-                    )
 
-                    phrase_count = self.count_phrase_in_text(title, description)
-                    contains_money = self.check_for_money(title, description)
+                        phrase_count = self.count_phrase_in_text(title, description)
+                        contains_money = self.check_for_money(title, description)
 
-                    if (datetime.now() - date).days / 30 > self.months:
+                        if (datetime.now() - date).days / 30 > self.months:
+                            logger.info(
+                                "News articles are older than the specified months."
+                            )
+                            return
+
+                        self.news_data.append(
+                            {
+                                "title": title,
+                                "date": date.strftime("%Y-%m-%d"),
+                                "description": description,
+                                "image_filename": image_filename,
+                                "phrase_count": phrase_count,
+                                "contains_money": contains_money,
+                            }
+                        )
+
                         logger.info(
-                            "News articles are older than the specified months."
+                            f"Extracted news: {title} | Date: {date} | Money mentioned: {contains_money}"
                         )
-                        return
-
-                    self.news_data.append(
-                        {
-                            "title": title,
-                            "date": date.strftime("%Y-%m-%d"),
-                            "description": description,
-                            "image_filename": image_filename,
-                            "phrase_count": phrase_count,
-                            "contains_money": contains_money,
-                        }
-                    )
-
-                    logger.info(
-                        f"Extracted news: {title} | Date: {date} | Money mentioned: {contains_money}"
-                    )
+                    except Exception as e:
+                        logger.error(f"Failed to process article: {e}")
+                        retry_with_fallback(
+                            lambda: self.browser.capture_page_screenshot(
+                                "output/article_processing_error.png"
+                            )
+                        )
 
                 try:
                     next_button_locator = "div.search-results-module-next-page a"
