@@ -141,28 +141,28 @@ class NewsScraperBot:
 
                 titles = retry_with_fallback(
                     lambda: wait.until(
-                        EC.presence_of_all_elements_located(
+                        EC.visibility_of_all_elements_located(
                             (By.XPATH, titles_locator)
                         )
                     )
                 )
                 dates = retry_with_fallback(
                     lambda: wait.until(
-                        EC.presence_of_all_elements_located(
+                        EC.visibility_of_all_elements_located(
                             (By.XPATH, dates_locator)
                         )
                     )
                 )
                 descriptions = retry_with_fallback(
                     lambda: wait.until(
-                        EC.presence_of_all_elements_located(
+                        EC.visibility_of_all_elements_located(
                             (By.XPATH, description_locator)
                         )
                     )
                 )
                 image_elements = retry_with_fallback(
                     lambda: wait.until(
-                        EC.presence_of_all_elements_located(
+                        EC.visibility_of_all_elements_located(
                             (By.XPATH, image_locator)
                         )
                     )
@@ -301,7 +301,8 @@ class NewsScraperBot:
     def wait_for_page_load(self, timeout=10):
         try:
             WebDriverWait(self.driver, timeout).until(
-                lambda driver: driver.execute_script('return document.readyState') == 'complete'
+                lambda driver: driver.execute_script("return document.readyState")
+                == "complete"
             )
             logger.info("Page has fully loaded.")
         except Exception as e:
