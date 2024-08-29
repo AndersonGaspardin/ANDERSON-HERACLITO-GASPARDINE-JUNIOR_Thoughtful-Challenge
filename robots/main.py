@@ -18,7 +18,6 @@ from .logger_config import logger
 class NewsScraperBot:
     def __init__(self, url, search_phrase=None, category=None, months=1):
         self.browser = Selenium()
-        self.driver = ""
         self.url = url
         self.search_phrase = search_phrase
         self.category = category
@@ -130,9 +129,9 @@ class NewsScraperBot:
 
     def extract_news_data(self):
         logger.info("Extracting news data")
-        wait = WebDriverWait(self.browser.driver, 30)
         try:
             while True:
+                wait = WebDriverWait(self.browser.driver, 50).until(EC.staleness_of())
                 self.wait_for_page_load(timeout=30)
                 titles_locator = '//h3[contains(@class, "title")]'
                 dates_locator = '//p[@class="promo-timestamp"]'
