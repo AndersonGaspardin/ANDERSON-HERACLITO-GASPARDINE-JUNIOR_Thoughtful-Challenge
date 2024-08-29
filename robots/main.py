@@ -1,7 +1,7 @@
 from datetime import datetime
-from time import sleep
 import requests
-from selenium import webdriver
+
+from RPA.Browser.Selenium import Selenium
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -9,18 +9,17 @@ import pandas as pd
 
 import re
 import os
-import logging
 import yaml
 
 from robots.utils import retry_with_fallback
+from .logger_config import logger
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 class NewsScraperBot:
     def __init__(self, url, search_phrase=None, category=None, months=1):
-        self.driver = webdriver.Chrome()
+        self.browser = Selenium()
+        self.driver = ''
         self.url = url
         self.search_phrase = search_phrase
         self.category = category
@@ -28,10 +27,12 @@ class NewsScraperBot:
         self.news_data = []
         self.retry_website = "https://www.latimes.com/search?q="
 
-    def open_website_and_search(self):
+    def open_website(self):
         logger.info(f"Opening website: {self.url}")
-        self.driver.get(self.url)
+        self.browser.open_available_browser(self.url)
+        self.driver = self.browser.driver
 
+    def search(self):
         try:
             logger.info("Waiting for the search button to be clickable")
             search_button = WebDriverWait(self.driver, 30).until(
@@ -46,7 +47,6 @@ class NewsScraperBot:
         except Exception as e:
             logger.error(f"Failed to find the search button: {e}")
             self.driver.save_screenshot("output/button_to_search_bar_error.png")
-        sleep(30)
         try:
             logger.info(f"Waiting for the search input to be available")
             search_input = WebDriverWait(self.driver, 60).until(
@@ -126,7 +126,6 @@ class NewsScraperBot:
             self.driver.save_screenshot("output/sort_by_newest_error.png")
 
     def extract_news_data(self):
-        sleep(30)
         logger.info("Extracting news data")
         try:
             while True:
@@ -276,16 +275,12 @@ class NewsScraperBot:
     def run(self):
         try:
             self.load_workitem_parameters(local_test=True)
-            sleep(7)
-            self.open_website_and_search()
+            self.open_website()
+            self.search()
             if self.category:
-                sleep(7)
-                self.filter_by_category()
-            sleep(7)
+                    self.filter_by_category()
             self.sort_by_newest()
-            sleep(7)
             self.extract_news_data()
-            sleep(7)
             self.save_to_excel()
         except Exception as e:
             logger.error(f"An error occurred: {e}")

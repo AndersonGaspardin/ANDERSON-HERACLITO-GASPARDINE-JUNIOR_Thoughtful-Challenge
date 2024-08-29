@@ -10,3 +10,5 @@ def setup_logging(log_file="output/news_scraper.log"):
     )
     logger = logging.getLogger(__name__)
     return logger
+
+logger = setup_logging()
