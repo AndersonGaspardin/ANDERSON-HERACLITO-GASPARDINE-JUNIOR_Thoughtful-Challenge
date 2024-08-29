@@ -15,11 +15,10 @@ from robots.utils import retry_with_fallback
 from .logger_config import logger
 
 
-
 class NewsScraperBot:
     def __init__(self, url, search_phrase=None, category=None, months=1):
         self.browser = Selenium()
-        self.driver = ''
+        self.driver = ""
         self.url = url
         self.search_phrase = search_phrase
         self.category = category
@@ -128,6 +127,11 @@ class NewsScraperBot:
     def extract_news_data(self):
         logger.info("Extracting news data")
         try:
+            WebDriverWait(self.driver, 30).until(
+                EC.visibility_of_all_elements_located(
+                    '//h3[contains(@class, "title")]'
+                )
+            )
             while True:
                 titles = self.driver.find_elements(
                     By.XPATH, '//h3[contains(@class, "title")]'
@@ -278,7 +282,7 @@ class NewsScraperBot:
             self.open_website()
             self.search()
             if self.category:
-                    self.filter_by_category()
+                self.filter_by_category()
             self.sort_by_newest()
             self.extract_news_data()
             self.save_to_excel()
