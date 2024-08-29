@@ -126,24 +126,42 @@ class NewsScraperBot:
 
     def extract_news_data(self):
         logger.info("Extracting news data")
+        wait = WebDriverWait(self.browser.driver, 10)
         try:
-            WebDriverWait(self.driver, 30).until(
-                EC.visibility_of_all_elements_located(
-                    '//h3[contains(@class, "title")]'
-                )
-            )
             while True:
-                titles = self.driver.find_elements(
-                    By.XPATH, '//h3[contains(@class, "title")]'
+
+                titles_locator = '//h3[contains(@class, "title")]'
+                dates_locator = '//p[@class="promo-timestamp"]'
+                description_locator = '//p[contains(@class, "description")]'
+                image_locator = '//img[contains(@class, "image")]'
+
+                titles = retry_with_fallback(
+                    lambda: wait.until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, titles_locator)
+                        )
+                    )
                 )
-                dates = self.driver.find_elements(
-                    By.XPATH, '//p[@class="promo-timestamp"]'
+                dates = retry_with_fallback(
+                    lambda: wait.until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, dates_locator)
+                        )
+                    )
                 )
-                descriptions = self.driver.find_elements(
-                    By.XPATH, '//p[contains(@class, "description")]'
+                descriptions = retry_with_fallback(
+                    lambda: wait.until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, description_locator)
+                        )
+                    )
                 )
-                image_elements = self.driver.find_elements(
-                    By.XPATH, '//img[contains(@class, "image")]'
+                image_elements = retry_with_fallback(
+                    lambda: wait.until(
+                        EC.presence_of_all_elements_located(
+                            (By.XPATH, image_locator)
+                        )
+                    )
                 )
 
                 for i in range(len(titles)):
