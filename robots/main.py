@@ -126,7 +126,7 @@ class NewsScraperBot:
 
     def extract_news_data(self):
         logger.info("Extracting news data")
-        wait = WebDriverWait(self.browser.driver, 10)
+        wait = WebDriverWait(self.browser.driver, 30)
         try:
             while True:
 
