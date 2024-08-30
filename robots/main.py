@@ -1,4 +1,5 @@
 from datetime import datetime
+from time import sleep
 import requests
 
 from RPA.Browser.Selenium import Selenium
@@ -47,7 +48,7 @@ class NewsScraperBot:
             logger.error(f"Failed to find the search button: {e}")
             self.driver.save_screenshot("output/button_to_search_bar_error.png")
         try:
-            self.wait_for_page_load()
+            sleep(4)
             logger.info(f"Waiting for the search input to be available")
             search_input = WebDriverWait(self.driver, 60).until(
                 EC.visibility_of_element_located(
@@ -57,8 +58,9 @@ class NewsScraperBot:
                     )
                 )
             )
-            search_input.send_keys(self.search_phrase)
-            search_input.submit()
+            sleep(4)
+            retry_with_fallback(lambda: search_input.send_keys(self.search_phrase))
+            retry_with_fallback(lambda: search_input.submit())
 
         except Exception as e:
             logger.error(f"Failed to find the search input: {e}")
@@ -74,11 +76,7 @@ class NewsScraperBot:
                 see_all_button = WebDriverWait(self.driver, 10).until(
                     EC.element_to_be_clickable((By.XPATH, see_all_locator))
                 )
-                retry_with_fallback(
-                    lambda: see_all_button.click(),
-                    retries=3,
-                    delay=5,
-                )
+                retry_with_fallback(lambda: see_all_button.click())
                 logger.info(
                     f"Looking for category '{self.category}' in the filter list"
                 )
@@ -92,11 +90,7 @@ class NewsScraperBot:
                         checkbox = element.find_element(
                             By.XPATH, '../input[@type="checkbox"]'
                         )
-                        retry_with_fallback(
-                            lambda: checkbox.click(),
-                            retries=3,
-                            delay=5,
-                        )
+                        retry_with_fallback(lambda: checkbox.click())
                         logger.info(
                             f"Category '{self.category}' selected successfully."
                         )
@@ -114,13 +108,13 @@ class NewsScraperBot:
             sort_dropdown = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, sort_locator))
             )
-            sort_dropdown.click()
+            retry_with_fallback(lambda: sort_dropdown.click())
 
             newest_option_locator = 'option[value="1"]'
             newest_option = WebDriverWait(self.driver, 10).until(
                 EC.element_to_be_clickable((By.CSS_SELECTOR, newest_option_locator))
             )
-            newest_option.click()
+            retry_with_fallback(lambda: newest_option.click())
 
             logger.info("Sorted results by newest")
         except Exception as e:
@@ -132,7 +126,8 @@ class NewsScraperBot:
         try:
             while True:
                 self.wait_for_page_load(15)
-                article_locator = '//div[contains(@class, "article-class") and contains(@class, "other-class")]'
+                sleep(5)
+                article_locator = "css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1)"
                 articles = retry_with_fallback(
                     lambda: self.browser.find_elements(article_locator)
                 )
@@ -209,7 +204,7 @@ class NewsScraperBot:
             logger.error(f"Failed to extract news data: {e}")
             self.driver.save_screenshot("output/extract_news_data_error.png")
 
-    def convert_timestamp_to_date(self, timestamp):
+    def _convert_timestamp_to_date(self, timestamp):
         """Convert a timestamp to a datetime object."""
         try:
             return datetime.fromtimestamp(int(timestamp) / 1000)
