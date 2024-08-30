@@ -128,15 +128,15 @@ class NewsScraperBot:
                 self.wait_for_page_load(20)
                 sleep(10)
                 for attempt in range(3):
-                    titles_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/div/h3/a'
-                    dates_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/p[2]'
-                    description_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/p[1]'
-                    image_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[1]/a/picture/img'
+                    titles_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > div > h3 > a'
+                    dates_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > p.promo-timestamp'
+                    description_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > p.promo-description'
+                    image_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-media > a > picture > img'
 
                     try:
                         titles = retry_with_fallback(
                             lambda: self.driver.find_elements(
-                                By.XPATH, titles_locator
+                                By.CSS_SELECTOR, titles_locator
                             )
                         )
                     except Exception as e:
@@ -144,7 +144,7 @@ class NewsScraperBot:
                     try:
                         dates = retry_with_fallback(
                             lambda: self.driver.find_elements(
-                                (By.XPATH, dates_locator)
+                                (By.CSS_SELECTOR, dates_locator)
                             )
                         )
                     except Exception as e:
@@ -152,7 +152,7 @@ class NewsScraperBot:
                     try:
                         descriptions = retry_with_fallback(
                             lambda: self.driver.find_elements(
-                                (By.XPATH, description_locator)
+                                (By.CSS_SELECTOR, description_locator)
                             )
                         )
                     except Exception as e:
@@ -161,7 +161,7 @@ class NewsScraperBot:
                     try:
                         image_elements = retry_with_fallback(
                             lambda: self.driver.find_elements(
-                                (By.XPATH, image_locator)
+                                (By.CSS_SELECTOR, image_locator)
                             )
                         )
                     except Exception as e:
