@@ -139,24 +139,24 @@ class NewsScraperBot:
                                 By.XPATH, titles_locator
                             )
                         )
-                    except:
-                        logger.info(f"Attempt to extract title failed")
+                    except Exception as e:
+                        logger.error(f"Attempt to extract title failed: {e}")
                     try:
                         dates = retry_with_fallback(
                             lambda: self.driver.find_elements(
                                 (By.XPATH, dates_locator)
                             )
                         )
-                    except:
-                        logger.info(f"Attempt to extract date failed")
+                    except Exception as e:
+                        logger.error(f"Attempt to extract date failed: {e}")
                     try:
                         descriptions = retry_with_fallback(
                             lambda: self.driver.find_elements(
                                 (By.XPATH, description_locator)
                             )
                         )
-                    except:
-                        logger.info(f"Attempt to extract description failed")
+                    except Exception as e:
+                        logger.error(f"Attempt to extract description failed: {e}")
 
                     try:
                         image_elements = retry_with_fallback(
@@ -164,8 +164,8 @@ class NewsScraperBot:
                                 (By.XPATH, image_locator)
                             )
                         )
-                    except:
-                        logger.info(f"Attempt to extract images failed")
+                    except Exception as e:
+                        logger.error(f"Attempt to extract images failed: {e}")
 
                     if collected_all_data(
                         titles, dates, descriptions, image_elements
