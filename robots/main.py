@@ -12,7 +12,7 @@ import re
 import os
 import yaml
 
-from robots.utils import collected_all_data, retry_with_fallback
+from robots.utils import retry_with_fallback
 from .logger_config import logger
 
 
@@ -127,78 +127,67 @@ class NewsScraperBot:
             while True:
                 self.wait_for_page_load(20)
                 sleep(10)
-                for attempt in range(3):
-                    titles_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > div > h3 > a'
-                    dates_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > p.promo-timestamp'
-                    description_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-content > p.promo-description'
-                    image_locator = 'css:body > div.page-content > ps-search-results-module > form > div.search-results-module-ajax > ps-search-filters > div > main > ul > li:nth-child(1) > ps-promo > div > div.promo-media > a > picture > img'
+                news_elements = self.driver.find_elements(
+                    By.CSS_SELECTOR, "ps-promo.promo"
+                )
 
+                for news_element in news_elements:
                     try:
-                        titles = retry_with_fallback(
-                            lambda: self.driver.find_elements(
-                                By.CSS_SELECTOR, titles_locator
+                        title_element = retry_with_fallback(
+                            lambda: news_element.find_element(
+                                By.CSS_SELECTOR, "h3.promo-title a"
                             )
                         )
+                        title = title_element.text
                     except Exception as e:
                         logger.error(f"Attempt to extract title failed: {e}")
+
                     try:
-                        dates = retry_with_fallback(
-                            lambda: self.driver.find_elements(
-                                (By.CSS_SELECTOR, dates_locator)
+                        date_element = retry_with_fallback(
+                            lambda: news_element.find_element(
+                                By.CSS_SELECTOR, "p.promo-timestamp"
                             )
                         )
+                        timestamp = date_element.get_attribute("data-timestamp")
+                        date = self._convert_timestamp_to_date(timestamp)
                     except Exception as e:
                         logger.error(f"Attempt to extract date failed: {e}")
+
                     try:
-                        descriptions = retry_with_fallback(
-                            lambda: self.driver.find_elements(
-                                (By.CSS_SELECTOR, description_locator)
+                        description_element = retry_with_fallback(
+                            lambda: news_element.find_element(
+                                By.CSS_SELECTOR, "p.promo-description"
                             )
+                        )
+                        description = (
+                            description_element.text
+                            if description_element
+                            else "N/A"
                         )
                     except Exception as e:
                         logger.error(f"Attempt to extract description failed: {e}")
 
                     try:
-                        image_elements = retry_with_fallback(
-                            lambda: self.driver.find_elements(
-                                (By.CSS_SELECTOR, image_locator)
+                        image_element = retry_with_fallback(
+                            lambda: news_element.find_element(
+                                By.CSS_SELECTOR, "img.image"
                             )
+                        )
+                        image_url = (
+                            image_element.get_attribute("src")
+                            if image_element
+                            else ""
+                        )
+                        image_filename = (
+                            self.download_image(
+                                image_url,
+                                f"output/image_{date}_{len(self.news_data)}.jpg",
+                            )
+                            if image_url
+                            else ""
                         )
                     except Exception as e:
                         logger.error(f"Attempt to extract images failed: {e}")
-
-                    if collected_all_data(
-                        titles, dates, descriptions, image_elements
-                    ):
-                        break
-                    else:
-                        logger.info(
-                            f"Attempt {attempt + 1}: Not all elements were found, retrying..."
-                        )
-                        sleep(5)
-
-                for i in range(len(titles)):
-                    title = titles[i].text if titles[i] else ""
-
-                    date_text = (
-                        dates[i].get_attribute("data-timestamp") if dates[i] else ""
-                    )
-                    date = self._convert_timestamp_to_date(date_text)
-
-                    description = descriptions[i].text if descriptions[i] else ""
-
-                    image_url = (
-                        image_elements[i].get_attribute("src")
-                        if image_elements[i]
-                        else ""
-                    )
-                    image_filename = (
-                        self.download_image(
-                            image_url, f"output/image_{date}_{i}.jpg"
-                        )
-                        if image_url
-                        else ""
-                    )
 
                     phrase_count = self.count_phrase_in_text(title, description)
                     contains_money = self.check_for_money(title, description)
