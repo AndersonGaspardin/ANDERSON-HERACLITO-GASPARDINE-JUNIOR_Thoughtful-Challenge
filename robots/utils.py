@@ -25,3 +25,11 @@ def load_local_work_item(file_path):
     """Load work item parameters from a local YAML file."""
     with open(file_path, "r") as file:
         return yaml.safe_load(file)
+    
+def collected_all_data(titles, dates, descriptions, image_elements):
+            return (
+                len(titles) == 10
+                and len(dates) == 10
+                and len(descriptions) == 10
+                and len(image_elements) == 10
+            )

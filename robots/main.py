@@ -12,7 +12,7 @@ import re
 import os
 import yaml
 
-from robots.utils import retry_with_fallback
+from robots.utils import collected_all_data, retry_with_fallback
 from .logger_config import logger
 
 
@@ -122,30 +122,36 @@ class NewsScraperBot:
             self.driver.save_screenshot("output/sort_by_newest_error.png")
 
     def extract_news_data(self):
-        logger.info("Extracting news data")
+        logger.info(f"Extracting news data from url: {self.driver.current_url}")
         try:
             while True:
                 self.wait_for_page_load(20)
                 sleep(10)
                 for attempt in range(3):
-                    titles = self.driver.find_elements(
-                        By.XPATH, '//h3[contains(@class, "title")]'
+                    titles_locator = '//h3[contains(@class, "title")]'
+                    dates_locator = '//p[@class="promo-timestamp"]'
+                    description_locator = '//p[contains(@class, "description")]'
+                    image_locator = '//img[contains(@class, "image")]'
+
+                    titles = retry_with_fallback(
+                        lambda: self.driver.find_elements(By.XPATH, titles_locator)
                     )
-                    dates = self.driver.find_elements(
-                        By.XPATH, '//p[@class="promo-timestamp"]'
-                    )
-                    descriptions = self.driver.find_elements(
-                        By.XPATH, '//p[contains(@class, "description")]'
-                    )
-                    image_elements = self.driver.find_elements(
-                        By.XPATH, '//img[contains(@class, "image")]'
+                    dates = retry_with_fallback(
+                        lambda: self.driver.find_elements((By.XPATH, dates_locator))
                     )
 
-                    if (
-                        len(titles) == 10
-                        and len(dates) == 10
-                        and len(descriptions) == 10
-                        and len(image_elements) == 10
+                    descriptions = retry_with_fallback(
+                        lambda: self.driver.find_elements(
+                            (By.XPATH, description_locator)
+                        )
+                    )
+
+                    image_elements = retry_with_fallback(
+                        lambda: self.driver.find_elements((By.XPATH, image_locator))
+                    )
+
+                    if collected_all_data(
+                        titles, dates, descriptions, image_elements
                     ):
                         break
                     else:
@@ -292,6 +298,8 @@ class NewsScraperBot:
             logger.info("Page has fully loaded.")
         except Exception as e:
             logger.error(f"Page did not load within {timeout} seconds. Error: {e}")
+
+        
 
     def run(self):
         try:
