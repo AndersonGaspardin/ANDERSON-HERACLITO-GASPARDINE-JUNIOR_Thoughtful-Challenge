@@ -133,22 +133,39 @@ class NewsScraperBot:
                     description_locator = '//p[contains(@class, "description")]'
                     image_locator = '//img[contains(@class, "image")]'
 
-                    titles = retry_with_fallback(
-                        lambda: self.driver.find_elements(By.XPATH, titles_locator)
-                    )
-                    dates = retry_with_fallback(
-                        lambda: self.driver.find_elements((By.XPATH, dates_locator))
-                    )
-
-                    descriptions = retry_with_fallback(
-                        lambda: self.driver.find_elements(
-                            (By.XPATH, description_locator)
+                    try:
+                        titles = retry_with_fallback(
+                            lambda: self.driver.find_elements(
+                                By.XPATH, titles_locator
+                            )
                         )
-                    )
+                    except:
+                        logger.info(f"Attempt to extract title failed")
+                    try:
+                        dates = retry_with_fallback(
+                            lambda: self.driver.find_elements(
+                                (By.XPATH, dates_locator)
+                            )
+                        )
+                    except:
+                        logger.info(f"Attempt to extract date failed")
+                    try:
+                        descriptions = retry_with_fallback(
+                            lambda: self.driver.find_elements(
+                                (By.XPATH, description_locator)
+                            )
+                        )
+                    except:
+                        logger.info(f"Attempt to extract description failed")
 
-                    image_elements = retry_with_fallback(
-                        lambda: self.driver.find_elements((By.XPATH, image_locator))
-                    )
+                    try:
+                        image_elements = retry_with_fallback(
+                            lambda: self.driver.find_elements(
+                                (By.XPATH, image_locator)
+                            )
+                        )
+                    except:
+                        logger.info(f"Attempt to extract images failed")
 
                     if collected_all_data(
                         titles, dates, descriptions, image_elements
@@ -298,8 +315,6 @@ class NewsScraperBot:
             logger.info("Page has fully loaded.")
         except Exception as e:
             logger.error(f"Page did not load within {timeout} seconds. Error: {e}")
-
-        
 
     def run(self):
         try:
