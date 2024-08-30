@@ -128,10 +128,10 @@ class NewsScraperBot:
                 self.wait_for_page_load(20)
                 sleep(10)
                 for attempt in range(3):
-                    titles_locator = '//h3[contains(@class, "title")]'
-                    dates_locator = '//p[@class="promo-timestamp"]'
-                    description_locator = '//p[contains(@class, "description")]'
-                    image_locator = '//img[contains(@class, "image")]'
+                    titles_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/div/h3/a'
+                    dates_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/p[2]'
+                    description_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[2]/p[1]'
+                    image_locator = '/html/body/div[3]/ps-search-results-module/form/div[2]/ps-search-filters/div/main/ul/li[1]/ps-promo/div/div[1]/a/picture/img'
 
                     try:
                         titles = retry_with_fallback(
